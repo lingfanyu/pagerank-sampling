@@ -15,6 +15,7 @@ with tf.device('/device:CPU:0'):
                         dense_shape=[n, n])
     end = time.time()
     elapse(start, end, "creating sparse tensor")
+    # sort sparse indices in lexicographical order
     m = tf.sparse_reorder(m)
 
 with tf.device('/device:GPU:0'):
