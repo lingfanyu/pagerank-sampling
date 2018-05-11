@@ -1,9 +1,9 @@
 import tensorflow as tf
-from util import load_dataset, elapse
+from util import load_full_graph, elapse
 import time
 
 d = 0.85
-n, indices, values = load_dataset('web.pkl')
+n, indices, values = load_full_graph()
 print("reading dataset done")
 values = [d * v for v in values]
 
@@ -22,7 +22,7 @@ with tf.device('/device:GPU:0'):
     delta = tf.constant(1.0)
     step = tf.constant(0)
     # terminate when relative delta of norm is less than epsilon
-    cond = lambda step, p, delta : delta > 1e-5
+    cond = lambda step, p, delta : tf.logical_and(step < 100,  delta > 1e-5)
     sum_p = tf.reduce_sum(p)
     def body(step, p, delta):
         last_p = p

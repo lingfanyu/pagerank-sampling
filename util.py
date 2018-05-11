@@ -1,8 +1,8 @@
 import re
 from collections import defaultdict as ddict
 
-def load_dataset(bfile, filename='web-Stanford.txt'):
 
+def load_dataset(filename='web-Stanford.txt'):
     # parse file
     with open(filename, 'r') as f:
         # read # nodes, # edges
@@ -24,6 +24,13 @@ def load_dataset(bfile, filename='web-Stanford.txt'):
             # make the graph undirected
             edges[dst].add(src)
 
+    sink = set(range(n_vertex)) - set(edges.keys())
+    print("# sink = {}".format(len(sink)))
+
+    return n_vertex, edges
+
+
+def convert_to_sparse_M(edges):
     indices = []
     values = []
     for src in edges:
@@ -33,12 +40,20 @@ def load_dataset(bfile, filename='web-Stanford.txt'):
             # note: M_ij is edge j to i divided by num out of j
             indices.append([dst, src])
             values.append(v)
+    return indices, values
 
-    sink = set(range(n_vertex)) - set(edges.keys())
-    print("# sink = {}".format(len(sink)))
-    #for src in sink:
-    #    indices.extend([[dst, src] for dst in range(n_vertex) if dst != src])
-    #values.extend([1.0 / (n_vertex - 1)] * ((n_vertex - 1) * len(sink)))
+
+def load_full_graph(filename='web-Stanford.txt'):
+    n_vertex, edges = load_dataset(filename)
+    indices, values = convert_to_sparse_M(edges)
+
+    """
+    # add outgoing edges for sink nodes
+    for src in sink:
+        indices.extend([[dst, src] for dst in range(n_vertex) if dst != src])
+    values.extend([1.0 / (n_vertex - 1)] * ((n_vertex - 1) * len(sink)))
+    """
+
     return n_vertex, indices, values
 
 
