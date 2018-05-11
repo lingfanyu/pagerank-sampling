@@ -1,14 +1,7 @@
 import re
-import pickle
-import os
 from collections import defaultdict as ddict
 
 def load_dataset(bfile, filename='web-Stanford.txt'):
-    # if parsed file exists
-    if os.path.isfile(bfile):
-        with open(bfile, 'rb') as f:
-            data = pickle.load(f)
-            return data
 
     # parse file
     with open(filename, 'r') as f:
@@ -20,6 +13,7 @@ def load_dataset(bfile, filename='web-Stanford.txt'):
         m = re.match(r'^# Nodes: (\d*) Edges: (\d*)$', line.strip())
         n_vertex = int(m.group(1))
         n_edge = int(m.group(2))
+        print("# vertex: {}, # edge: {}".format(n_vertex, n_edge))
 
         edges = ddict(set)
         for _ in range(n_edge):
@@ -27,6 +21,8 @@ def load_dataset(bfile, filename='web-Stanford.txt'):
             src, dst = line.split()
             src, dst = int(src) - 1, int(dst) - 1
             edges[src].add(dst)
+            # make the graph undirected
+            edges[dst].add(src)
 
     indices = []
     values = []
@@ -38,10 +34,15 @@ def load_dataset(bfile, filename='web-Stanford.txt'):
             indices.append([dst, src])
             values.append(v)
 
-    data = (n_vertex, indices, values)
+    sink = set(range(n_vertex)) - set(edges.keys())
+    print("# sink = {}".format(len(sink)))
+    #for src in sink:
+    #    indices.extend([[dst, src] for dst in range(n_vertex) if dst != src])
+    #values.extend([1.0 / (n_vertex - 1)] * ((n_vertex - 1) * len(sink)))
+    return n_vertex, indices, values
 
-    # store parsed result
-    with open(bfile, 'wb') as f:
-        pickle.dump(data, f)
 
-    return data
+def elapse(start, end, msg = None):
+    if msg is not None:
+        print(str(msg) + ":")
+    print("{} s".format(end-start))
