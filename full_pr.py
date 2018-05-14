@@ -46,6 +46,7 @@ while i < max_iter:
     i += 1
 
 end = time.time()
-print(sess.run(p))
+pr = sess.run(p)
+print(np.sum(pr))
 elapse(start, end, "iteration")
 
