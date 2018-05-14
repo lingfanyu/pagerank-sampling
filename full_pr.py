@@ -19,7 +19,7 @@ with tf.device('/device:CPU:0'):
     # sort sparse indices in lexicographical order
     m = tf.sparse_reorder(m)
 
-with tf.device('/device:GPU:0'):
+with tf.device('/device:GPU:2'):
     p = tf.get_variable("pagerank", trainable=False,
             initializer=tf.constant(1.0 / n, shape=[n, 1]))
     new_p = tf.sparse_tensor_dense_matmul(m, p) + (1 - d) / n
@@ -48,5 +48,8 @@ while i < max_iter:
 end = time.time()
 pr = sess.run(p)
 print(np.sum(pr))
+with open("result_full.txt", "w") as f:
+    for p in pr:
+        f.write(str(p[0]) + '\n')
 elapse(start, end, "iteration")
 

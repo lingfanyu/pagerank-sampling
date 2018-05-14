@@ -1,8 +1,20 @@
 import re
 from collections import defaultdict as ddict
 
+def get_num_vertex(filename='web-Stanford.txt'):
+    with open(filename, 'r') as f:
+        # read # nodes, # edges
+        f.readline()
+        f.readline()
+        line = f.readline()
+        f.readline()
+        m = re.match(r'^# Nodes: (\d*) Edges: \d*$', line.strip())
+        n_vertex = int(m.group(1))
+        print("# vertex: {}".format(n_vertex))
+        return n_vertex
 
-def load_dataset(filename='web-Stanford.txt'):
+
+def load_dataset(filename='web-Stanford.txt', add_reverse=True):
     # parse file
     with open(filename, 'r') as f:
         # read # nodes, # edges
@@ -22,10 +34,11 @@ def load_dataset(filename='web-Stanford.txt'):
             src, dst = int(src) - 1, int(dst) - 1
             edges[src].add(dst)
             # make the graph undirected
-            edges[dst].add(src)
+            if add_reverse:
+                edges[dst].add(src)
 
-    sink = set(range(n_vertex)) - set(edges.keys())
-    print("# sink = {}".format(len(sink)))
+    #sink = set(range(n_vertex)) - set(edges.keys())
+    #print("# sink = {}".format(len(sink)))
 
     return n_vertex, edges
 
