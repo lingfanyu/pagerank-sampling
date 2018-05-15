@@ -46,7 +46,7 @@ def filter_and_build_mapping(vertices, edges):
     return new_edges, new2old
 
 
-def load_all_samples(fname, N=64, shuffle=True):
+def load_all_samples(fname, N=1024):
     from util import get_num_vertex, load_dataset, convert_to_sparse_M
     n_vertex = get_num_vertex(fname)
     datasets = []
@@ -62,8 +62,4 @@ def load_all_samples(fname, N=64, shuffle=True):
         # create sparse M
         indices, values = convert_to_sparse_M(e_sampled)
         datasets.append((v_sampled, indices, values, new2old))
-    if shuffle:
-        order = range(N)
-        random.shuffle(order)
-        datasets = [datasets[i] for i in order]
     return n_vertex, datasets
