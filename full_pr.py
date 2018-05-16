@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 d = 0.85
-n, indices, values = load_full_graph()
+n, indices, values = load_full_graph('small_graph.txt')
 print("reading dataset done")
 values = [d * v for v in values]
 
@@ -19,7 +19,7 @@ with tf.device('/device:CPU:0'):
     # sort sparse indices in lexicographical order
     m = tf.sparse_reorder(m)
 
-with tf.device('/device:GPU:2'):
+with tf.device('/device:GPU:0'):
     p = tf.get_variable("pagerank", trainable=False,
             initializer=tf.constant(1.0 / n, shape=[n, 1]))
     new_p = tf.sparse_tensor_dense_matmul(m, p) + (1 - d) / n

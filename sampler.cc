@@ -9,8 +9,8 @@
 #include <functional>
 
 #define NTHREAD 32
-#define PERCENT 0.01
-#define NSAMPLE 1024
+#define PERCENT 0.1
+#define NSAMPLE 8192
 
 using namespace std;
 using Edges = vector<pair<int, int> >;
@@ -32,7 +32,8 @@ unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample)
     vector<int> queue;
 
     // choose random start point
-    int start = rand() % num_vertex;
+    // original graph is 1-indexed
+    int start = rand() % num_vertex + 1;
     res.insert(start);
     queue.push_back(start);
 
@@ -59,7 +60,8 @@ unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample)
 unordered_set<int> uniform_sampler(int num_vertex, const Edges& edges, int n_sample) {
     unordered_set<int> res;
     while (res.size() < n_sample) {
-        res.insert(rand() % num_vertex);
+        // original graph is 1-indexed
+        res.insert(rand() % num_vertex + 1);
     }
     return move(res);
 }
@@ -101,8 +103,8 @@ void* sampler_worker(void* args) {
 int main() {
     srand(time(NULL));
     string path = "samples";
-    Sampler sampler = uniform_sampler;
-    const char* filename = "web-Stanford.txt";
+    Sampler sampler = bfs_sampler;
+    const char* filename = "small_graph.txt"; //"web-Stanford.txt";
     FILE* fp = fopen(filename, "r");
     char buf[128];
     fgets(buf, 128, fp);
@@ -123,7 +125,7 @@ int main() {
 
     int n_sample = int(n_v * PERCENT);
     vector<Arg> args;
-    int each = NSAMPLE / NTHREAD * 8;
+    int each = NSAMPLE / NTHREAD;
     string prefix = path + "/sample_";
     for (int i = 0; i < NTHREAD; i++) {
         vector<string> files;
