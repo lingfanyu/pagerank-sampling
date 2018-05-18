@@ -6,23 +6,13 @@ import numpy as np
 d = 0.85
 n, indices, values = load_full_graph('small_graph.txt')
 print("reading dataset done")
-values = [d * v for v in values]
-
-# put on CPU first because sparse_reorder does not have a GPU impl...
-with tf.device('/device:CPU:0'):
-    start = time.time()
+with tf.device('/device:GPU:0'):
     m = tf.SparseTensor(indices=indices,
                         values=values,
                         dense_shape=[n, n])
-    end = time.time()
-    elapse(start, end, "creating sparse tensor")
-    # sort sparse indices in lexicographical order
-    m = tf.sparse_reorder(m)
-
-with tf.device('/device:GPU:0'):
     p = tf.get_variable("pagerank", trainable=False,
             initializer=tf.constant(1.0 / n, shape=[n, 1]))
-    new_p = tf.sparse_tensor_dense_matmul(m, p) + (1 - d) / n
+    new_p = d * tf.sparse_tensor_dense_matmul(m, p) + (1 - d) / n
     delta = tf.abs(new_p - p) / p
     # make sure assign happens later
     with tf.control_dependencies([delta]):
@@ -32,7 +22,7 @@ sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
 start = time.time()
 sess.run(p.initializer)
 i = 0
-max_iter = 100
+max_iter = 1000
 while i < max_iter:
     res = sess.run([delta, assignment])
     norm = np.sort(np.reshape(res[0], -1))
