@@ -53,6 +53,11 @@ def convert_to_sparse_M(edges):
             # note: M_ij is edge j to i divided by num out of j
             indices.append([dst, src])
             values.append(v)
+    # reorder indices
+    M = zip(indices, values)
+    M = sorted(M, key=lambda x:x[0])
+    indices, values = zip(*M)
+
     return indices, values
 
 
