@@ -27,15 +27,12 @@ def bfs_sampler(n, p, edges):
 
 
 # filter edges and build mapping from new vertices to old
-def filter_and_build_mapping(vertices, edges):
-    old = sorted(vertices)
+def filter_and_build_mapping(old, edges):
     n = len(old)
     new = range(n)
     # build a mapping from sampled nodes to original nodes
-    new2old = {}
     old2new = {}
     for i, j in zip(old, new):
-        new2old[j] = i
         old2new[i] = j
     new_edges = ddict(set)
     for src in edges:
@@ -43,7 +40,7 @@ def filter_and_build_mapping(vertices, edges):
             for dst in edges[src]:
                 if dst in old:
                     new_edges[old2new[src]].add(old2new[dst])
-    return new_edges, new2old
+    return new_edges
 
 
 def load_all_samples(fname, N=1024):
@@ -57,9 +54,9 @@ def load_all_samples(fname, N=1024):
         for v in edges.values():
             v_sampled = v_sampled.union(v)
         assert(len(v_sampled) == n_v)
-        v_sampled = list(v_sampled)
-        e_sampled, new2old = filter_and_build_mapping(v_sampled, edges)
+        v_sampled = sorted(list(v_sampled))
+        e_sampled = filter_and_build_mapping(v_sampled, edges)
         # create sparse M
         indices, values = convert_to_sparse_M(e_sampled)
-        datasets.append((v_sampled, indices, values, new2old))
+        datasets.append((v_sampled, indices, values))
     return n_vertex, datasets
