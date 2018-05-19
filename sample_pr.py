@@ -31,7 +31,7 @@ def main(args):
 
     path = "/scratch0/nn-data/lingfan/pagerank/bfs/"
     sample_list = get_sample_list(args, keep_order = True)
-    n_vertex, datasets = load_all_samples(args.dataset, sample_list, args.percent, path, args.interval)
+    n_vertex, datasets = load_all_samples(args.dataset, sample_list, percent=args.percent, interval=args.interval)
 
     # global page rank value array
     global_pr = np.array([[1.0 / n_vertex]] * n_vertex, dtype=np.float32)
@@ -56,7 +56,7 @@ def main(args):
         if datasets is None:
             # reload dataset
             random_samples = get_sample_list(args)
-            _, datasets = load_all_samples(args.dataset, random_samples, args.percent, path, args.interval)
+            _, datasets = load_all_samples(args.dataset, random_samples, percent=args.percent, interval=args.interval)
 
         pr_buffer = global_pr.copy()
 

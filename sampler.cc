@@ -9,9 +9,9 @@
 #include <functional>
 #include <algorithm>
 
-#define NTHREAD 32
-#define PERCENT 0.90
-#define NSAMPLE 1024
+#define NTHREAD 8
+#define PERCENT 0.01
+#define NSAMPLE 10240
 
 using namespace std;
 using Edges = vector<pair<int, int> >;
@@ -142,7 +142,7 @@ void* sampler_worker(void* args) {
 
 int main() {
     srand(time(NULL));
-    string path = "/scratch0/nn-data/lingfan/pagerank/bfs/samples90/";
+    string path = "samples01/";
     Sampler sampler = bfs_sampler;
     const char* filename = "web-Stanford.txt";
     FILE* fp = fopen(filename, "r");
