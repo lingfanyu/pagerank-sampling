@@ -7,14 +7,26 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <functional>
+#include <algorithm>
 
 #define NTHREAD 32
-#define PERCENT 0.1
-#define NSAMPLE 8192
+#define PERCENT 0.90
+#define NSAMPLE 1024
 
 using namespace std;
 using Edges = vector<pair<int, int> >;
 using Sampler = function<unordered_set<int>(int, const Edges&, int)>;
+
+struct pairhash {
+public:
+    std::size_t operator()(const std::pair<int, int> &x) const{
+        return std::hash<string>()(to_string(x.first) + "," + to_string(x.second));
+    }
+};
+
+bool my_comparer(const pair<int, int>& x, const pair<int, int>& y) {
+    return x.first < y.first || x.first == y.first && x.second <= y.second;
+}
 
 unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample) {
     // build an adj matrix
@@ -67,14 +79,42 @@ unordered_set<int> uniform_sampler(int num_vertex, const Edges& edges, int n_sam
 }
 
 void dump(string file, const Edges& edges, unordered_set<int>& v) {
+    // sort all sampled vertices
+    vector<int> vertices;
+    for (int node: v) {
+        vertices.push_back(node);
+    }
+    sort(vertices.begin(), vertices.end());
+
+    // build mapping from old to new
+    unordered_map<int, int> map;
+    for (int i = 0; i < vertices.size(); i++) {
+        // vertex is 1-indexed
+        map[vertices[i]] = i + 1;
+    }
+    
+    // count all outgoing edges
+    vector<int> count(vertices.size(), 0);
     Edges new_edges;
     for (auto& e: edges) {
         if (v.find(e.first) != v.end() && v.find(e.second) != v.end()) {
-            new_edges.push_back(e);
+            // convert to new vertex index
+            new_edges.emplace_back(map[e.first], map[e.second]);
+            ++count[map[e.second] - 1];
         }
     }
     FILE* fp = fopen(file.c_str(), "w");
     fprintf(fp, "#\n#\n# Nodes: %lu Edges: %lu\n#\n", v.size(), new_edges.size());
+
+    // print sampled node and # of outgoing edges
+    for (int i = 0; i < vertices.size(); ++i) {
+        fprintf(fp, "%d\t%d\n", vertices[i], count[i]);
+    }
+
+    // for sanity check
+    fprintf(fp, "#\n");
+
+    // print all edges (dst->src)
     for (auto& e: new_edges) {
         fprintf(fp, "%d\t%d\n", e.first, e.second);
     }
@@ -102,9 +142,9 @@ void* sampler_worker(void* args) {
 
 int main() {
     srand(time(NULL));
-    string path = "samples";
+    string path = "/scratch0/nn-data/lingfan/pagerank/bfs/samples90/";
     Sampler sampler = bfs_sampler;
-    const char* filename = "small_graph.txt"; //"web-Stanford.txt";
+    const char* filename = "web-Stanford.txt";
     FILE* fp = fopen(filename, "r");
     char buf[128];
     fgets(buf, 128, fp);
@@ -114,19 +154,28 @@ int main() {
     sscanf(buf, "# Nodes: %d Edges: %d", &n_v, &n_e);
     fgets(buf, 128, fp);
     printf("%d %d\n", n_v, n_e);
-    Edges edges;
+    unordered_set<pair<int, int>, pairhash> edge_set;
     for (int i = 0; i < n_e; i++) {
         int src, dst;
         fscanf(fp, "%d\t%d\n", &src, &dst);
-        edges.emplace_back(src, dst);
-        edges.emplace_back(dst, src);
+        // edges are stored in dst->src order
+        edge_set.emplace(dst, src);
+        // add reverse edge to make it undirected
+        edge_set.emplace(src, dst);
     }
     fclose(fp);
+    printf("good\n");
+    Edges edges;
+    for (auto& e: edge_set) {
+        edges.push_back(e);
+    }
+
+    sort(edges.begin(), edges.end(), my_comparer);
 
     int n_sample = int(n_v * PERCENT);
     vector<Arg> args;
     int each = NSAMPLE / NTHREAD;
-    string prefix = path + "/sample_";
+    string prefix = path + "sample_";
     for (int i = 0; i < NTHREAD; i++) {
         vector<string> files;
         for (int j = 0; j < each; j++) {
