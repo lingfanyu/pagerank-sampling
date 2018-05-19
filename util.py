@@ -1,49 +1,81 @@
 import re
 from collections import defaultdict as ddict
 
+
+def read_meta(f):
+    # read # nodes, # edges
+    f.readline()
+    f.readline()
+    line = f.readline()
+    f.readline()
+    m = re.match(r'^# Nodes: (\d*) Edges: (\d*)$', line.strip())
+    n_vertex = int(m.group(1))
+    n_edge = int(m.group(2))
+    #print("# vertex: {}, # edge: {}".format(n_vertex, n_edge))
+    return n_vertex, n_edge
+
+
 def get_num_vertex(filename='web-Stanford.txt'):
     with open(filename, 'r') as f:
         # read # nodes, # edges
-        f.readline()
-        f.readline()
+        return read_meta(f)[0]
+
+
+def read_edges(f, n_edge, add_reverse=False):
+    edges = ddict(list)
+    for _ in range(n_edge):
         line = f.readline()
-        f.readline()
-        m = re.match(r'^# Nodes: (\d*) Edges: \d*$', line.strip())
-        n_vertex = int(m.group(1))
-        print("# vertex: {}".format(n_vertex))
-        return n_vertex
+        src, dst = line.split()
+        src, dst = int(src) - 1, int(dst) - 1
+        edges[src].append(dst)
+        # make the graph undirected
+        if add_reverse:
+            edges[dst].append(src)
+    return edges
 
 
-def load_dataset(filename='web-Stanford.txt', add_reverse=True):
+def read_vertex(f, n_vertex):
+    vertices = []
+    count = []
+    for _ in range(n_vertex):
+        line = f.readline()
+        v, c = line.split()
+        vertices.append(int(v) - 1)
+        count.append(int(c))
+    return vertices, count
+
+
+def load_original_graph(filename='web-Stanford.txt'):
     # parse file
     with open(filename, 'r') as f:
-        # read # nodes, # edges
-        f.readline()
-        f.readline()
+        n_vertex, n_edge = read_meta(f)
+        edges = read_edges(f, n_edge, add_reverse=True)
+        return n_vertex, edges
+
+
+def read_indices_values(f, n_edge, count):
+    indices = []
+    values = []
+    for _ in range(n_edge):
         line = f.readline()
-        f.readline()
-        m = re.match(r'^# Nodes: (\d*) Edges: (\d*)$', line.strip())
-        n_vertex = int(m.group(1))
-        n_edge = int(m.group(2))
-        print("# vertex: {}, # edge: {}".format(n_vertex, n_edge))
-
-        edges = ddict(set)
-        for _ in range(n_edge):
-            line = f.readline()
-            src, dst = line.split()
-            src, dst = int(src) - 1, int(dst) - 1
-            edges[src].add(dst)
-            # make the graph undirected
-            if add_reverse:
-                edges[dst].add(src)
-
-    #sink = set(range(n_vertex)) - set(edges.keys())
-    #print("# sink = {}".format(len(sink)))
-
-    return n_vertex, edges
+        src, dst = line.split()
+        src, dst = int(src) - 1, int(dst) - 1
+        indices.append([src, dst])
+        values.append(1.0 / count[dst])
+    return indices, values
 
 
-def convert_to_sparse_M(edges):
+def load_sampled_graph(filename):
+    with open(filename, 'r') as f:
+        n_vertex, n_edge = read_meta(f)
+        vertices, count = read_vertex(f, n_vertex)
+        # sanity check
+        assert(f.readline().strip() == '#')
+        indices, values = read_indices_values(f, n_edge, count)
+        return vertices, indices, values
+
+
+def convert_to_sparse_M(edges, sort_indices=True):
     indices = []
     values = []
     for src in edges:
@@ -55,23 +87,16 @@ def convert_to_sparse_M(edges):
             values.append(v)
     # reorder indices
     M = zip(indices, values)
-    M = sorted(M, key=lambda x:x[0])
+    if sort_indices:
+        M = sorted(M, key=lambda x:x[0])
     indices, values = zip(*M)
 
     return indices, values
 
 
 def load_full_graph(filename='web-Stanford.txt'):
-    n_vertex, edges = load_dataset(filename)
+    n_vertex, edges = load_original_graph(filename)
     indices, values = convert_to_sparse_M(edges)
-
-    """
-    # add outgoing edges for sink nodes
-    for src in sink:
-        indices.extend([[dst, src] for dst in range(n_vertex) if dst != src])
-    values.extend([1.0 / (n_vertex - 1)] * ((n_vertex - 1) * len(sink)))
-    """
-
     return n_vertex, indices, values
 
 

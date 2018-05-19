@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 d = 0.85
-n, indices, values = load_full_graph('small_graph.txt')
+n, indices, values = load_full_graph('web-Stanford.txt') #'small_graph.txt')
 print("reading dataset done")
 with tf.device('/device:GPU:0'):
     m = tf.SparseTensor(indices=indices,
