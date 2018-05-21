@@ -6,7 +6,7 @@ import numpy as np
 import time
 
 def main(args):
-    output = "{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
+    output = "results/{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
     print(output)
     d = args.damping_factor
 
@@ -31,11 +31,13 @@ def main(args):
                 + tf.reduce_sum(local_pr) * (1 - d) / tf.to_float(n_sampled)
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
 
+    interval = args.samples / 10
+    if interval <= 0:
+        interval = 1
     sample_order = range(args.samples)
 
     for epoch in range(args.epochs):
         print("epoch {} / {}".format(epoch, args.epochs))
-
 
         pr_buffer = global_pr.copy()
 
@@ -61,10 +63,11 @@ def main(args):
             pr_buffer[ver] = pr_value
 
             # write out current pr
-            with open(output, "w") as f:
-                f.write('epoch {} sample {} {}\n'.format(epoch, count, sample_idx))
-                for v in pr_buffer:
-                    f.write(str(v[0]) + '\n')
+            if count % interval == 0:
+                with open(output, "w") as f:
+                    f.write('epoch {} sample {} {}\n'.format(epoch, count, sample_idx))
+                    for v in pr_buffer:
+                        f.write(str(v[0]) + '\n')
 
             print("epoch {} sample {} {}\t{}".format(epoch, count, sample_idx, np.sum(global_pr)))
             # explicitly remove reference
@@ -79,8 +82,12 @@ def main(args):
         norm99 = norm[int(0.99 * n_vertex)]
         norm50 = norm[int(0.5 * n_vertex)]
         global_pr = pr_buffer
+        with open("{}_{}".format(output, epoch), "w") as f:
+            f.write('epoch {} sample {} {} {} {}\n'.format(epoch, count, sample_idx, norm50, norm99))
+            for v in pr_buffer:
+                f.write(str(v[0]) + '\n')
         print("norm: p50 {}, p99 {}".format(norm50, norm99))
-        if norm99 < 1e-5:
+        if norm99 < 1e-4:
             break
 
     # endfor epoch
