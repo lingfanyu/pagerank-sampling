@@ -1,24 +1,42 @@
 import tensorflow as tf
 import argparse
+import os
 import random
 from util import read_meta, load_sampled_graph
 import numpy as np
 import time
 
+def dump(output, pr_buffer, epoch, count="", sample_idx="", norm50="", norm99=""):
+    with open(output, "w") as f:
+        f.write('epoch {} sample {} {} {} {}\n'.format(epoch, count, sample_idx, norm50, norm99))
+        for v in pr_buffer:
+            f.write(str(v[0]) + '\n')
+
 def main(args):
+    interval = args.method == "uniform" and 10 or 1
     output = "results/{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
     print(output)
     d = args.damping_factor
 
     # read # of total vertex
-    with open(args.dataset, 'r') as f:
-        n_vertex, _ = read_meta(f)
+    if args.method == "uniform":
+        from sampler import uniform_sampling
+        from util import load_full_graph
+        from scipy.sparse.csr import csr_matrix as csr
+        n_vertex, full_ind, full_val = load_full_graph(args.dataset, sort_indices=False)
+        full_row, full_col = zip(*full_ind)
+        full_M = csr((full_val, (full_row, full_col)), shape=(n_vertex, n_vertex))
+        percent = int(args.percent) / 100.0
+    else:
+        from util import read_meta, load_sampled_graph
+        with open(args.dataset, 'r') as f:
+            n_vertex, _ = read_meta(f)
 
     # global page rank value array
     global_pr = np.array([[1.0 / n_vertex]] * n_vertex, dtype=np.float32)
 
     # define dataflow graph
-    with tf.device('/device:GPU:{}'.format(args.gpu)):
+    with tf.device('/device:GPU:0'):
         n_sampled = tf.placeholder(tf.int32)
         local_pr = tf.placeholder(tf.float32)
         indices = tf.placeholder(tf.int64)
@@ -48,7 +66,10 @@ def main(args):
         count = 0
         for sample_idx in sample_order:
             # sample batches and create dataflow graph
-            ver, ind, val = load_sampled_graph("samples{}/sample_{}.txt".format(args.percent, sample_idx))
+            if args.method == "uniform":
+                ver, ind, val = uniform_sampling(full_M, n_vertex, percent, sort=False)
+            else:
+                ver, ind, val = load_sampled_graph("samples{}/sample_{}.txt".format(args.percent, sample_idx))
 
             nver = len(ver)
             # one iteration
@@ -63,13 +84,11 @@ def main(args):
             pr_buffer[ver] = pr_value
 
             # write out current pr
-            if count % interval == 0:
-                with open(output, "w") as f:
-                    f.write('epoch {} sample {} {}\n'.format(epoch, count, sample_idx))
-                    for v in pr_buffer:
-                        f.write(str(v[0]) + '\n')
+            if args.method == "bfs" and count % interval == 0:
+                dump(output, pr_buffer, epoch, count, sample_idx)
 
-            print("epoch {} sample {} {}\t{}".format(epoch, count, sample_idx, np.sum(global_pr)))
+            if count % interval == 0:
+                print("epoch {} sample {} {}\t{}".format(epoch, count, sample_idx, np.sum(global_pr)))
             # explicitly remove reference
             del ver, ind, val
 
@@ -81,6 +100,7 @@ def main(args):
         norm = np.sort(np.reshape(norm, -1))
         norm99 = norm[int(0.99 * n_vertex)]
         norm50 = norm[int(0.5 * n_vertex)]
+        dump("{}_{}".format(output, epoch), pr_buffer, epoch, count, norm50, norm99)
         global_pr = pr_buffer
         with open("{}_{}".format(output, epoch), "w") as f:
             f.write('epoch {} sample {} {} {} {}\n'.format(epoch, count, sample_idx, norm50, norm99))
@@ -112,14 +132,18 @@ if __name__ == '__main__':
             help="whether or not to shuffle")
     parser.add_argument("--percent", type=str, default="10",
             help="sampling percent")
-    parser.add_argument("--gpu", type=int, default=0,
+    parser.add_argument("--gpu", type=str, default='0',
             help="GPU device to use")
-    parser.add_argument("--interval", type=int, default=100,
-            help="log interval")
+    parser.add_argument("--method", type=str, default="uniform",
+            help="sampling method: [bfs|uniform]")
     args = parser.parse_args()
     nsamples = {'01': 10240, '10': 5120, '25': 1024, '50': 512, '90': 512}
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     if args.samples is None:
         args.samples = nsamples[args.percent]
+    if args.method == "uniform":
+        args.shuffle = False
+        args.output = "result_uniform/" + args.output
     print(args)
     random.seed(args.seed)
     main(args)
