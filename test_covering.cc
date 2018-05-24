@@ -94,9 +94,14 @@ void edge_sampler(VSet& vs, ESet& es, const Edges& edges, float percent) {
 int main(int argc, const char** argv) {
     string method = "uniform";
     float percent = 0.01;
-    if (argc == 3) {
-        method = argv[1];
-        percent = stof(argv[2]);
+    if (argc > 1) {
+        if (argc == 3) {
+            method = argv[1];
+            percent = stof(argv[2]);
+        }
+    } else {
+        printf("error usage\n");
+        exit(-1);
     }
     printf("%s sampling with p %f\n", method.c_str(), percent);
     srand(time(NULL));
@@ -141,14 +146,14 @@ int main(int argc, const char** argv) {
     n_e = edges.size();
     VSet vs;
     ESet es;
-    sprintf(buf, "%s_%.2f.txt", method.c_str(), percent);
+    sprintf(buf, "tests/%s_%.2f.txt", method.c_str(), percent);
     fp = fopen(buf, "w");
     fprintf(fp, "%d\t%d\n", n_v, n_e);
     fclose(fp);
     int n_vs = 0;
     int n_es = 0;
     int count = 0;
-    while (n_vs < n_v * 0.99 || n_es < n_e * 0.99 || count < 1000) {
+    while (n_vs < n_v * 0.99 || n_es < n_e * 0.99 || count < 100) {
         if (method == "uniform") {
             update_vertex(vs, es, edges, uniform_sampler(n_v, edges, percent));
         } else if (method == "bfs") {
@@ -162,9 +167,9 @@ int main(int argc, const char** argv) {
         n_vs = vs.size();
         n_es = es.size();
         fp = fopen(buf, "a");
-        fprintf(fp, "%d\t%d\n", n_vs, n_es);
+        fprintf(fp, "%d\t%d\t%.2f\t%.6f\n", n_vs, n_es, (float)n_vs / n_v, (float)n_es / n_e);
         fclose(fp);
-        printf("sample %d\tv: %d / %d %.2f\te: %d / %d %.6f\n", count, n_vs, n_v, (float)n_vs / n_v, n_es, n_e, (float)n_es / n_e);
+        // printf("sample %d\tv: %d / %d %.2f\te: %d / %d %.6f\n", count, n_vs, n_v, (float)n_vs / n_v, n_es, n_e, (float)n_es / n_e);
         ++count;
     }
 
