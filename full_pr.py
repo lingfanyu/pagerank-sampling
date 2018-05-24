@@ -36,10 +36,10 @@ while i < max_iter:
     i += 1
 
 end = time.time()
-pr = sess.run(p)
-print(np.sum(pr))
+print(np.sum(res[1]))
+res = sess.run(p)
 with open("result_full.txt", "w") as f:
-    for p in pr:
-        f.write(str(p[0]) + '\n')
+    for pp in res:
+        f.write(str(pp[0]) + '\n')
 elapse(start, end, "iteration")
 
