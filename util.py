@@ -73,6 +73,16 @@ def read_indices_values(f, n_edge, count):
     return indices, values
 
 
+def read_indices(f, n_edge):
+    indices = []
+    for _ in range(n_edge):
+        line = f.readline()
+        src, dst = line.split()
+        src, dst = int(src) - 1, int(dst) - 1
+        indices.append([src, dst])
+    return indices
+
+
 def load_sampled_graph(filename):
     with open(filename, 'r') as f:
         n_vertex, n_edge = read_meta(f)

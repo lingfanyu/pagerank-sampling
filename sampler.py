@@ -51,6 +51,33 @@ def uniform_sampling(M, n_vertex, percent, sort=False):
 
     return v_sampled, indices, values
 
+def edge_sampling(indices_full, percent):
+    n_edge = len(indices_full)
+
+    # edge uniform sampling
+    samples = random.sample(range(n_edge), int(percent * n_edge))
+    sampled_edges = indices_full[samples]
+
+    # get sampled vertices
+    v_sampled, e_sampled = np.unique(sampled_edges, return_inverse=True)
+    n_sampled = len(v_sampled)
+
+    # get new edges (contiguous range)
+    e_sampled = np.reshape(e_sampled, (-1, 2))
+
+    # add reverse edges
+    e_sampled = np.concatenate((e_sampled, e_sampled[:, [1,0]]))
+
+    # deduplicate and sort
+    indices = np.unique(e_sampled, axis=0)
+
+    # count outgoing edges
+    _, inv, count = np.unique(indices[:, 1], return_inverse=True, return_counts=True)
+
+    # calculate sparse M values
+    values = 1.0 / count[inv]
+    return v_sampled, indices, values
+
 
 # filter edges and build mapping from new vertices to old
 def filter_and_build_mapping(old, edges):

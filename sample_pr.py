@@ -13,8 +13,8 @@ def dump(output, pr_buffer, epoch, count="", sample_idx="", norm50="", norm99=""
             f.write(str(v[0]) + '\n')
 
 def main(args):
-    interval = args.method == "uniform" and 10 or 1
-    output = "results/{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
+    interval = args.method == "bfs" and 1 or 10
+    output = "{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
     print(output)
     d = args.damping_factor
 
@@ -26,11 +26,19 @@ def main(args):
         n_vertex, full_ind, full_val = load_full_graph(args.dataset, sort_indices=False)
         full_row, full_col = zip(*full_ind)
         full_M = csr((full_val, (full_row, full_col)), shape=(n_vertex, n_vertex))
-        percent = int(args.percent) / 100.0
+    elif args.method == "edge":
+        from util import read_meta, read_indices
+        from sampler import edge_sampling
+        with open(args.dataset) as f:
+            n_vertex, n_edge = read_meta(f)
+            full_indices = read_indices(f, n_edge)
+            full_indices = np.array(full_indices)
     else:
         from util import read_meta, load_sampled_graph
         with open(args.dataset, 'r') as f:
             n_vertex, _ = read_meta(f)
+
+    percent = int(args.percent) / 100.0
 
     # global page rank value array
     global_pr = np.array([[1.0 / n_vertex]] * n_vertex, dtype=np.float32)
@@ -68,6 +76,8 @@ def main(args):
             # sample batches and create dataflow graph
             if args.method == "uniform":
                 ver, ind, val = uniform_sampling(full_M, n_vertex, percent, sort=False)
+            elif args.method == "edge":
+                ver, ind, val = edge_sampling(full_indices, percent)
             else:
                 ver, ind, val = load_sampled_graph("samples{}/sample_{}.txt".format(args.percent, sample_idx))
 
@@ -102,10 +112,6 @@ def main(args):
         norm50 = norm[int(0.5 * n_vertex)]
         dump("{}_{}".format(output, epoch), pr_buffer, epoch, count, norm50, norm99)
         global_pr = pr_buffer
-        with open("{}_{}".format(output, epoch), "w") as f:
-            f.write('epoch {} sample {} {} {} {}\n'.format(epoch, count, sample_idx, norm50, norm99))
-            for v in pr_buffer:
-                f.write(str(v[0]) + '\n')
         print("norm: p50 {}, p99 {}".format(norm50, norm99))
         if norm99 < 1e-4:
             break
@@ -135,15 +141,21 @@ if __name__ == '__main__':
     parser.add_argument("--gpu", type=str, default='0',
             help="GPU device to use")
     parser.add_argument("--method", type=str, default="uniform",
-            help="sampling method: [bfs|uniform]")
+            help="sampling method: [bfs|uniform|edge]")
     args = parser.parse_args()
     nsamples = {'01': 10240, '10': 5120, '25': 1024, '50': 512, '90': 512}
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    if not args.method in ["bfs", "uniform", "edge"]:
+        print("Unknown sampling method: {}".format(args.method))
+        exit(-1)
+    path = args.output + "_" + args.method
+    if not os.path.exists(path):
+        os.makedirs(path)
+    args.output = os.path.join(path, args.output)
     if args.samples is None:
         args.samples = nsamples[args.percent]
-    if args.method == "uniform":
+    if args.method == "uniform" or args.method == "edge":
         args.shuffle = False
-        args.output = "result_uniform/" + args.output
     print(args)
     random.seed(args.seed)
     main(args)
