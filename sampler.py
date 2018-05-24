@@ -1,8 +1,8 @@
 import random
 from collections import defaultdict as ddict
 import time
-from util import elapse
-
+from util import elapse, convert_to_sparse_M
+import numpy as np
 
 def uniform_sampler(n, p, edges):
     vertices = random.sample(range(n), int(n * p))
@@ -25,6 +25,31 @@ def bfs_sampler(n, p, edges):
     if count > n_sample:
         sampled = sampled[:n_sample]
     return sampled
+
+
+# uniform sampling by slicing scipy sparse matrix
+def uniform_sampling(M, n_vertex, percent, sort=False):
+    n_sampled = int(n_vertex * percent)
+    v_sampled = np.array(sorted(random.sample(range(n_vertex), n_sampled)))
+    S = M
+    S = S[v_sampled, :]
+    S = S[:, v_sampled]
+
+    # filter out vertices with no edges
+    ne = np.diff(S.indptr) != 0
+    S = S[ne, :]
+    S = S[:, ne]
+    v_sampled = v_sampled[ne]
+    S = S.tocoo()
+    indices = zip(S.row, S.col)
+
+    # build new sparse M
+    edges = ddict(list)
+    for src, dst in indices:
+        edges[src].append(dst)
+    indices, values = convert_to_sparse_M(edges, sort)
+
+    return v_sampled, indices, values
 
 
 # filter edges and build mapping from new vertices to old
