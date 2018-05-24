@@ -22,15 +22,23 @@ def get_num_vertex(filename='web-Stanford.txt'):
 
 
 def read_edges(f, n_edge, add_reverse=False):
-    edges = ddict(list)
+    if add_reverse:
+        edges = ddict(set)
+        def add_edge(edges, src, dst):
+            edges[src].add(dst)
+    else:
+        edges = ddict(list)
+        def add_edge(edges, src, dst):
+            edges[src].append(dst)
+
     for _ in range(n_edge):
         line = f.readline()
         src, dst = line.split()
         src, dst = int(src) - 1, int(dst) - 1
-        edges[src].append(dst)
+        add_edge(edges, src, dst)
         # make the graph undirected
         if add_reverse:
-            edges[dst].append(src)
+            add_edge(edges, dst, src)
     return edges
 
 
@@ -86,17 +94,21 @@ def convert_to_sparse_M(edges, sort_indices=True):
             indices.append([dst, src])
             values.append(v)
     # reorder indices
-    M = zip(indices, values)
     if sort_indices:
+        M = zip(indices, values)
         M = sorted(M, key=lambda x:x[0])
-    indices, values = zip(*M)
+        indices, values = zip(*M)
 
     return indices, values
 
+def serialize(fname, indices):
+    with open(fname, 'w') as f:
+        for ind in indices:
+            f.write("{} {}\n".format(ind[0], ind[1]))
 
-def load_full_graph(filename='web-Stanford.txt'):
+def load_full_graph(filename='web-Stanford.txt', sort_indices=True):
     n_vertex, edges = load_original_graph(filename)
-    indices, values = convert_to_sparse_M(edges)
+    indices, values = convert_to_sparse_M(edges, sort_indices)
     return n_vertex, indices, values
 
 
