@@ -43,11 +43,17 @@ def uniform_sampling(M, n_vertex, percent, sort=False):
     S = S.tocoo()
     indices = zip(S.row, S.col)
 
+    """
     # build new sparse M
     edges = ddict(list)
     for src, dst in indices:
         edges[src].append(dst)
     indices, values = convert_to_sparse_M(edges, sort)
+    """
+
+    # count outging edges
+    _, inv, count = np.unique(S.row, return_inverse=True, return_counts=True)
+    values = 1.0 / count[inv]
 
     return v_sampled, indices, values
 
