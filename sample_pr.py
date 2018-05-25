@@ -2,7 +2,7 @@ import tensorflow as tf
 import argparse
 import os
 import random
-from util import read_meta, load_sampled_graph
+from util import elapse
 import numpy as np
 import time
 
@@ -18,7 +18,7 @@ def main(args):
     print(output)
     d = args.damping_factor
 
-    # read # of total vertex
+    # load full graph or meta information about full graph
     if args.method == "uniform":
         from sampler import uniform_sampling
         from util import load_full_graph
@@ -35,6 +35,7 @@ def main(args):
             full_indices = np.array(full_indices)
     else:
         from util import read_meta, load_sampled_graph
+        # read # of total vertex
         with open(args.dataset, 'r') as f:
             n_vertex, _ = read_meta(f)
 
@@ -57,9 +58,12 @@ def main(args):
                 + tf.reduce_sum(local_pr) * (1 - d) / tf.to_float(n_sampled)
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
 
+    # print interval
     interval = args.samples / 10
     if interval <= 0:
         interval = 1
+
+    # sample traversal order
     sample_order = range(args.samples)
 
     for epoch in range(args.epochs):
@@ -67,13 +71,13 @@ def main(args):
 
         pr_buffer = global_pr.copy()
 
+        # shuffle samples if needed
         if args.shuffle:
-            # shuffle samples
             random.shuffle(sample_order)
 
         count = 0
         for sample_idx in sample_order:
-            # sample batches and create dataflow graph
+            # load or on-the-fly sample one subgraph
             if args.method == "uniform":
                 ver, ind, val = uniform_sampling(full_M, n_vertex, percent, sort=False)
             elif args.method == "edge":
@@ -82,7 +86,7 @@ def main(args):
                 ver, ind, val = load_sampled_graph("samples{}/sample_{}.txt".format(args.percent, sample_idx))
 
             nver = len(ver)
-            # one iteration
+            # run one iteration
             pr_value = sess.run(new_pr,
                     feed_dict={local_pr: pr_buffer[ver],
                                indices: np.array(ind, np.int64),
@@ -99,7 +103,8 @@ def main(args):
 
             if count % interval == 0:
                 print("epoch {} sample {} {}\t{}".format(epoch, count, sample_idx, np.sum(global_pr)))
-            # explicitly remove reference
+
+            # explicitly remove reference to release memory
             del ver, ind, val
 
             count += 1
