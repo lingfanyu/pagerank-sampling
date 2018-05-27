@@ -52,7 +52,7 @@ def uniform_sampling(M, n_vertex, percent, sort=False):
     """
 
     # count outging edges
-    _, inv, count = np.unique(S.row, return_inverse=True, return_counts=True)
+    _, inv, count = np.unique(S.col, return_inverse=True, return_counts=True)
     values = 1.0 / count[inv]
 
     return v_sampled, indices, values
