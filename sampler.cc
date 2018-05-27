@@ -54,6 +54,7 @@ unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample)
     while (pos < queue.size() && count < n_sample) {
         int cur = queue[pos++];
         auto& es = adj[cur];
+        random_shuffle(es.begin(), es.end());
         for (int dst: es) {
             if (res.find(dst) == res.end()) {
                 res.insert(dst);
