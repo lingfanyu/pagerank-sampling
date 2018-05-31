@@ -13,7 +13,13 @@ def dump(output, pr_buffer, epoch, count="", sample_idx="", norm50="", norm99=""
             f.write(str(v[0]) + '\n')
 
 def main(args):
-    interval = args.method == "bfs" and 1 or 10
+    # print interval
+    if args.method == "bfs":
+        interval = 1
+    else:
+        interval = args.samples / 10
+        if interval <= 0:
+            interval = 1
     output = "{}_{}_{}.txt".format(args.output, args.shuffle and "shuffle" or "no_shuffle", args.percent)
     print(output)
     d = args.damping_factor
@@ -58,10 +64,6 @@ def main(args):
                 + tf.reduce_sum(local_pr) * (1 - d) / tf.to_float(n_sampled)
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False))
 
-    # print interval
-    interval = args.samples / 10
-    if interval <= 0:
-        interval = 1
 
     # sample traversal order
     sample_order = range(args.samples)
@@ -77,6 +79,8 @@ def main(args):
 
         count = 0
         for sample_idx in sample_order:
+            print("epoch {} sample {} {}".format(epoch, count, sample_idx))
+
             # load or on-the-fly sample one subgraph
             if args.method == "uniform":
                 ver, ind, val = uniform_sampling(full_M, n_vertex, percent, sort=False)
@@ -101,8 +105,7 @@ def main(args):
             if args.method == "bfs" and count % interval == 0:
                 dump(output, pr_buffer, epoch, count, sample_idx)
 
-            if count % interval == 0:
-                print("epoch {} sample {} {}\t{}".format(epoch, count, sample_idx, np.sum(global_pr)))
+            print(np.sum(global_pr))
 
             # explicitly remove reference to release memory
             del ver, ind, val
@@ -129,7 +132,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="page rank using spmv")
     parser.add_argument("--damping-factor", metavar='d', type=float, default=0.85,
             help="dampling factor")
-    parser.add_argument("--dataset", type=str, default='web-Stanford.txt',
+    parser.add_argument("--dataset", type=str, default='LCC.txt', #'web-Stanford.txt',
             help="dataset to use")
     parser.add_argument("--seed", type=int, default=20180512,
             help="random seed")
@@ -148,7 +151,7 @@ if __name__ == '__main__':
     parser.add_argument("--method", type=str, default="uniform",
             help="sampling method: [bfs|uniform|edge]")
     args = parser.parse_args()
-    nsamples = {'01': 10240, '10': 5120, '25': 1024, '50': 512, '90': 512}
+    nsamples = {'01': 10240, '10': 5120, '25': 1024, '50': 512, '75': 512, '85': 512, '90': 512}
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     if not args.method in ["bfs", "uniform", "edge"]:
         print("Unknown sampling method: {}".format(args.method))
@@ -156,7 +159,7 @@ if __name__ == '__main__':
     path = args.output + "_" + args.method
     if not os.path.exists(path):
         os.makedirs(path)
-    args.output = os.path.join(path, args.output)
+    args.output = os.path.join(path, 'LCC')
     if args.samples is None:
         args.samples = nsamples[args.percent]
     if args.method == "uniform" or args.method == "edge":
