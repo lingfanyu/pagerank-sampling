@@ -4,7 +4,9 @@ import time
 import numpy as np
 
 d = 0.85
-n, indices, values = load_full_graph('web-Stanford.txt') #'small_graph.txt')
+graph = 'web-Stanford.txt' #'small_graph.txt')
+graph = 'LCC.txt'
+n, indices, values = load_full_graph(graph)
 print("reading dataset done")
 with tf.device('/device:GPU:0'):
     m = tf.SparseTensor(indices=indices,
@@ -38,7 +40,7 @@ while i < max_iter:
 end = time.time()
 print(np.sum(res[1]))
 res = sess.run(p)
-with open("result_full.txt", "w") as f:
+with open("result_LCC_full.txt", "w") as f:
     for pp in res:
         f.write(str(pp[0]) + '\n')
 elapse(start, end, "iteration")

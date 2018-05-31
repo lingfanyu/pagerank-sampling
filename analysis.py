@@ -48,9 +48,11 @@ def degree_sample():
 
     keys = sorted(d.keys())
     for k in keys:
+        if k>10:
+            break
         c = sorted(d[k])
         n = len(c)
-        print("{}:\t {} {} {} {} {} {} {}".format(k, c[int(n*0.01)], c[int(n*0.1)], c[int(n*0.25)], c[int(n*0.5)], c[int(n*0.75)], c[int(n*0.9)], c[int(n*0.99)]))
+        print("{},{},{},{},{},{},{},{}".format(k, c[int(n*0.01)], c[int(n*0.1)], c[int(n*0.25)], c[int(n*0.5)], c[int(n*0.75)], c[int(n*0.9)], c[int(n*0.99)]))
 
 
 if __name__ == '__main__':

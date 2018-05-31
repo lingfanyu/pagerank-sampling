@@ -2,7 +2,8 @@ from util import read_meta, read_indices
 import numpy as np
 
 def count_degree():
-    fname = 'web-Stanford.txt'
+    #fname = 'web-Stanford.txt'
+    fname = 'LCC.txt'
     with open(fname, 'r') as f:
         n_vertex, n_edge = read_meta(f)
         indices = read_indices(f, n_edge)
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     cdf, degree = count_degree()
     for i in cdf:
         print(i)
-    with open('vertex_degree.txt', 'w') as f:
+    with open('LCC_vertex_degree.txt', 'w') as f:
         for i in degree:
             f.write("%d\n" % i)
 
