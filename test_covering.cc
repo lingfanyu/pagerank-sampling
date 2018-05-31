@@ -40,7 +40,7 @@ unordered_set<int> bfs_sampler(int num_vertex, unordered_map<int, vector<int>>& 
     while (pos < queue.size() && count < n_sample) {
         int cur = queue[pos++];
         auto& es = adj[cur];
-        random_shuffle(es.begin(), es.end());
+        //random_shuffle(es.begin(), es.end());
         for (int dst: es) { if (res.find(dst) == res.end()) {
                 res.insert(dst);
                 queue.push_back(dst);
@@ -91,16 +91,21 @@ void edge_sampler(VCount& vs, ECount& es, const Edges& edges, float percent) {
     while (res.size() < n_sample) {
         res.insert(rand() % n);
     }
+    unordered_set<int> vertex;
     for (int i: res) {
         auto& e = edges[i];
         if (es.find(e) == es.end()) {
             es[e] = 0;
         }
-        if (vs.find(e.first) == vs.end()) {
-            vs[e.first] = 0;
-        }
-        ++vs[e.first];
         ++es[e];
+        vertex.insert(e.first);
+        vertex.insert(e.second);
+    }
+    for (int i: vertex) {
+        if (vs.find(i) == vs.end()) {
+            vs[i] = 0;
+        }
+        ++vs[i];
     }
 }
 
@@ -159,7 +164,7 @@ int main(int argc, const char** argv) {
     n_e = edges.size();
     VCount vs;
     ECount es;
-    sprintf(buf, "tests/%s_%.2f_shuffle_stats.txt", method.c_str(), percent);
+    sprintf(buf, "tests/%s_%.2f_stats.txt", method.c_str(), percent);
     //fp = fopen(buf, "w");
     //fprintf(fp, "%d\t%d\n", n_v, n_e);
     //fclose(fp);
