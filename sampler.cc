@@ -9,13 +9,27 @@
 #include <functional>
 #include <algorithm>
 
-#define NTHREAD 8
-#define PERCENT 0.01
-#define NSAMPLE 10240
+#define NTHREAD 32
+#define PERCENT 0.85
+#define NSAMPLE 256
 
 using namespace std;
 using Edges = vector<pair<int, int> >;
 using Sampler = function<unordered_set<int>(int, const Edges&, int)>;
+#ifdef MIN_NEIGHBOR
+using VCount = unordered_map<int, int>;
+pthread_mutex_t mutex;
+VCount vc;
+class ScopeLock {
+public:
+    ScopeLock() {
+        pthread_mutex_lock(&mutex);
+    }
+    ~ScopeLock() {
+        pthread_mutex_unlock(&mutex);
+    }
+};
+#endif
 
 struct pairhash {
 public:
@@ -26,6 +40,10 @@ public:
 
 bool my_comparer(const pair<int, int>& x, const pair<int, int>& y) {
     return x.first < y.first || x.first == y.first && x.second <= y.second;
+}
+
+bool count_comparer(const pair<int, int>& x, const pair<int, int>& y) {
+    return x.second < y.second;
 }
 
 unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample) {
@@ -53,16 +71,38 @@ unordered_set<int> bfs_sampler(int num_vertex, const Edges& edges, int n_sample)
     int count = 1;
     while (pos < queue.size() && count < n_sample) {
         int cur = queue[pos++];
+#ifdef MIN_NEIGHBOR
+        auto& ess = adj[cur];
+        Edges vcount;
+        {
+            ScopeLock l;
+            for (int dst: ess) {
+                vcount.emplace_back(dst, vc[dst]);
+            }
+        }
+        sort(vcount.begin(), vcount.end(), count_comparer);
+        vector<int> es;
+        for (auto& en: vcount) {
+            es.push_back(en.first);
+        }
+#else
         auto& es = adj[cur];
         random_shuffle(es.begin(), es.end());
+#endif
         for (int dst: es) {
             if (res.find(dst) == res.end()) {
                 res.insert(dst);
                 queue.push_back(dst);
                 ++count;
-            }
-            if (count >= n_sample) {
-                break;
+#ifdef MIN_NEIGHBOR
+                {
+                    ScopeLock l;
+                    ++vc[dst];
+                }
+#endif
+                if (count >= n_sample) {
+                    break;
+                }
             }
         }
     }
@@ -143,7 +183,7 @@ void* sampler_worker(void* args) {
 
 int main() {
     srand(time(NULL));
-    string path = "samples01/";
+    string path = "samples85/";
     Sampler sampler = bfs_sampler;
     const char* filename = "web-Stanford.txt";
     FILE* fp = fopen(filename, "r");
@@ -173,6 +213,19 @@ int main() {
 
     sort(edges.begin(), edges.end(), my_comparer);
 
+#ifdef MIN_NEIGHBOR
+    // bfs with minimum sampled neighbor, init mutex
+    printf("bfs using min sampled neighbor\n");
+    if (pthread_mutex_init(&mutex, NULL) != 0) {
+        printf("\n mutex init failed\n");
+        return -1;
+    }
+    for (int i = 1; i <= n_v; i++) {
+        vc[i] = 0;
+    }
+#endif
+
+    // init worker args
     int n_sample = int(n_v * PERCENT);
     vector<Arg> args;
     int each = NSAMPLE / NTHREAD;
@@ -180,11 +233,12 @@ int main() {
     for (int i = 0; i < NTHREAD; i++) {
         vector<string> files;
         for (int j = 0; j < each; j++) {
-            files.push_back(prefix + to_string(i * each + j) + ".txt");
+            files.push_back(prefix + to_string(256+i * each + j) + ".txt");
         }
         args.emplace_back(edges, sampler, files, n_v, n_sample);
     }
 
+    // create worker using multi-threading
     vector<pthread_t> pids;
     for (int i = 0; i < NTHREAD; i++) {
         pthread_t pid;
